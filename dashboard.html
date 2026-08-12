@@ -1,0 +1,510 @@
+<title>Bitcoin vs. S&P 500 - Performance Dashboard</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --page-bg:        #eef0ec;
+    --card-bg:        #fcfcfb;
+    --ink-primary:    #0b0b0b;
+    --ink-secondary:  #52514e;
+    --ink-muted:      #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --accent:         #9a6d1f;
+    --accent-wash:    rgba(154,109,31,0.10);
+    --series-btc:     #2a78d6;
+    --series-spx:     #eb6834;
+    --div-pos:        #2a78d6;
+    --div-neg:        #e34948;
+    --status-good:    #006300;
+    --status-bad:     #c23b3a;
+    --shadow:         0 1px 2px rgba(11,11,11,0.04), 0 8px 24px -12px rgba(11,11,11,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --page-bg:        #0c0e10;
+      --card-bg:        #1a1a19;
+      --ink-primary:    #ffffff;
+      --ink-secondary:  #c3c2b7;
+      --ink-muted:      #8b8a84;
+      --gridline:       #2c2c2a;
+      --baseline:       #3a3a37;
+      --border:         rgba(255,255,255,0.10);
+      --accent:         #d9a53f;
+      --accent-wash:    rgba(217,165,63,0.12);
+      --series-btc:     #3987e5;
+      --series-spx:     #d95926;
+      --div-pos:        #3987e5;
+      --div-neg:        #e66767;
+      --status-good:    #0ca30c;
+      --status-bad:     #e66767;
+      --shadow:         0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --page-bg:        #0c0e10;
+    --card-bg:        #1a1a19;
+    --ink-primary:    #ffffff;
+    --ink-secondary:  #c3c2b7;
+    --ink-muted:      #8b8a84;
+    --gridline:       #2c2c2a;
+    --baseline:       #3a3a37;
+    --border:         rgba(255,255,255,0.10);
+    --accent:         #d9a53f;
+    --accent-wash:    rgba(217,165,63,0.12);
+    --series-btc:     #3987e5;
+    --series-spx:     #d95926;
+    --div-pos:        #3987e5;
+    --div-neg:        #e66767;
+    --status-good:    #0ca30c;
+    --status-bad:     #e66767;
+    --shadow:         0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.6);
+  }
+
+  .viz-root {
+    background: var(--page-bg);
+    color: var(--ink-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 40px clamp(16px, 4vw, 56px) 56px;
+    box-sizing: border-box;
+    min-height: 100%;
+  }
+  .viz-root * { box-sizing: border-box; }
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  /* ---- masthead ---- */
+  .masthead { padding-bottom: 28px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+  .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(26px, 3.6vw, 38px); font-weight: 800; letter-spacing: -0.02em;
+    margin: 0 0 8px; text-wrap: balance; line-height: 1.1;
+  }
+  .dek {
+    font-size: 15px; color: var(--ink-secondary); margin: 0 0 22px; max-width: 62ch; line-height: 1.5;
+  }
+  .ticker-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .ticker {
+    display: flex; align-items: baseline; gap: 10px;
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; box-shadow: var(--shadow);
+  }
+  .ticker-label { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-muted); }
+  .ticker-price { font-size: 19px; font-weight: 700; }
+  .ticker-date { font-size: 12px; color: var(--ink-muted); }
+
+  /* ---- insight banner ---- */
+  .insight {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--accent-wash); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 8px; padding: 14px 18px; margin-bottom: 28px; font-size: 14px; color: var(--ink-secondary);
+    line-height: 1.5;
+  }
+  .insight strong { color: var(--ink-primary); }
+
+  /* ---- cards / grid ---- */
+  .chart-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 860px) { .chart-grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 22px 18px; box-shadow: var(--shadow);
+  }
+  .card h2 {
+    font-size: 15px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.005em;
+  }
+  .card .sub { font-size: 12.5px; color: var(--ink-muted); margin: 0 0 18px; }
+
+  .legend { display: flex; gap: 18px; margin-bottom: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-secondary); }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+
+  .key-line { display: flex; gap: 18px; font-size: 12.5px; color: var(--ink-secondary); margin-bottom: 6px; }
+  .key-line span { display: inline-flex; align-items: center; gap: 6px; }
+  .key-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ---- bar chart (css/js positioned) ---- */
+  .chart-area { position: relative; height: 260px; margin-top: 6px; }
+  .gridlines { position: absolute; inset: 0; }
+  .gridline {
+    position: absolute; left: 0; right: 0; border-top: 1px solid var(--gridline);
+  }
+  .gridline .tick {
+    position: absolute; left: -6px; transform: translate(-100%, -50%);
+    font-size: 11px; color: var(--ink-muted); white-space: nowrap;
+  }
+  .zero-line { border-top: 1px solid var(--baseline); }
+  .plot { position: absolute; inset: 0 0 0 42px; }
+  .groups { position: absolute; inset: 0; display: flex; }
+  .group { flex: 1; position: relative; display: flex; justify-content: center; gap: 3px; }
+  .bar {
+    position: absolute; width: 20px; border-radius: 4px 4px 0 0;
+  }
+  .bar.neg { border-radius: 0 0 4px 4px; }
+  .bar-label {
+    position: absolute; font-size: 10.5px; font-weight: 600; white-space: nowrap; left: 50%; transform: translateX(-50%);
+  }
+  .cat-labels { display: flex; padding-left: 42px; margin-top: 10px; }
+  .cat-label { flex: 1; text-align: center; font-size: 12px; color: var(--ink-secondary); font-weight: 600; }
+
+  .bar-hit {
+    position: absolute; width: 30px; top: 0; bottom: 0; cursor: pointer;
+  }
+
+  /* ---- tooltip ---- */
+  .viz-tooltip {
+    position: fixed; pointer-events: none; z-index: 1000;
+    background: var(--ink-primary); color: var(--card-bg);
+    font-size: 12.5px; line-height: 1.45; padding: 9px 12px; border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25); opacity: 0; transform: translate(-50%, calc(-100% - 12px));
+    transition: opacity 0.08s ease; max-width: 220px;
+  }
+  .viz-tooltip.show { opacity: 1; }
+  .viz-tooltip .tt-val { font-weight: 700; }
+  .viz-tooltip .tt-row { display: flex; justify-content: space-between; gap: 12px; }
+  .viz-tooltip .tt-sub { opacity: 0.7; font-size: 11px; margin-top: 2px; }
+
+  /* ---- table ---- */
+  .table-card { margin-bottom: 28px; }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+  th, td { text-align: right; padding: 10px 12px; border-bottom: 1px solid var(--gridline); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted);
+    font-weight: 700; border-bottom: 1px solid var(--baseline);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody th { font-weight: 700; text-align: left; }
+  .pos { color: var(--status-good); }
+  .neg-txt { color: var(--status-bad); }
+  .cell-sub { color: var(--ink-muted); font-size: 11.5px; }
+
+  footer {
+    font-size: 12px; color: var(--ink-muted); line-height: 1.6; border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  footer a { color: inherit; }
+</style>
+
+<div class="viz-root">
+  <div class="wrap">
+
+    <header class="masthead">
+      <p class="eyebrow">Market Performance</p>
+      <h1>Bitcoin vs. the S&amp;P 500</h1>
+      <p class="dek">Trailing total return across five timeframes, with Bitcoin benchmarked directly against the S&amp;P 500 over the same windows.</p>
+      <div class="ticker-row">
+        <div class="ticker">
+          <span class="ticker-label">BTC-USD</span>
+          <span class="ticker-price mono" id="btc-price"></span>
+          <span class="ticker-date" id="asof-date"></span>
+        </div>
+        <div class="ticker">
+          <span class="ticker-label">S&amp;P 500</span>
+          <span class="ticker-price mono" id="spx-price"></span>
+          <span class="ticker-date" id="asof-date-2"></span>
+        </div>
+      </div>
+    </header>
+
+    <div class="insight" id="insight-banner"></div>
+
+    <div class="chart-grid">
+      <div class="card">
+        <h2>Trailing return by timeframe</h2>
+        <p class="sub">% change to today's close from each anchor date</p>
+        <div class="legend">
+          <span class="legend-item"><span class="swatch" style="background:var(--series-btc)"></span>Bitcoin</span>
+          <span class="legend-item"><span class="swatch" style="background:var(--series-spx)"></span>S&amp;P 500</span>
+        </div>
+        <div class="chart-area" id="returns-chart"></div>
+        <div class="cat-labels" id="returns-labels"></div>
+      </div>
+
+      <div class="card">
+        <h2>Performance delta</h2>
+        <p class="sub">Bitcoin return minus S&amp;P 500 return, in points</p>
+        <div class="key-line">
+          <span><span class="key-dot" style="background:var(--div-pos)"></span>Bitcoin ahead</span>
+          <span><span class="key-dot" style="background:var(--div-neg)"></span>Bitcoin behind</span>
+        </div>
+        <div class="chart-area" id="delta-chart"></div>
+        <div class="cat-labels" id="delta-labels"></div>
+      </div>
+    </div>
+
+    <div class="card table-card">
+      <h2>Full breakdown</h2>
+      <p class="sub">Nearest daily close to each anchor date</p>
+      <div class="table-scroll">
+        <table class="mono">
+          <thead>
+            <tr>
+              <th>Timeframe</th>
+              <th>BTC start</th>
+              <th>BTC return</th>
+              <th>S&amp;P start</th>
+              <th>S&amp;P return</th>
+              <th>Delta (pp)</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>
+      Source: Yahoo Finance daily close series for BTC-USD and ^GSPC, fetched live. Each anchor date is matched to the
+      nearest available trading day (Bitcoin trades daily; the S&amp;P 500 trades on market days only). Figures are price
+      return only, not inflation- or dividend-adjusted. Not investment advice.
+    </footer>
+  </div>
+</div>
+
+<div class="viz-tooltip" id="tooltip"></div>
+
+<script>
+(function () {
+  var current = { btc: { date: "2026-08-12", price: 63348.06 }, spx: { date: "2026-08-12", price: 7753.71 } };
+
+  var periods = [
+    { label: "Weekly",    btcDate: "2026-08-05", btcStart: 64597.50,  btcRet: -1.93,  spxDate: "2026-08-05", spxStart: 7723.55,  spxRet: 0.39,  delta: -2.32 },
+    { label: "Monthly",   btcDate: "2026-07-13", btcStart: 62239.12,  btcRet: 1.78,   spxDate: "2026-07-13", spxStart: 7515.34,  spxRet: 3.17,  delta: -1.39 },
+    { label: "Quarterly", btcDate: "2026-05-13", btcStart: 79277.12,  btcRet: -20.09, spxDate: "2026-05-13", spxStart: 7444.25,  spxRet: 4.16,  delta: -24.25 },
+    { label: "Yearly",    btcDate: "2025-08-12", btcStart: 120172.91, btcRet: -47.29, spxDate: "2025-08-12", spxStart: 6445.76,  spxRet: 20.29, delta: -67.58 },
+    { label: "5-Year",    btcDate: "2021-08-12", btcStart: 44428.29,  btcRet: 42.58,  spxDate: "2021-08-12", spxStart: 4460.83,  spxRet: 73.82, delta: -31.23 }
+  ];
+
+  function fmtUSD(n, decimals) {
+    return "$" + n.toLocaleString("en-US", { minimumFractionDigits: decimals || 0, maximumFractionDigits: decimals || 0 });
+  }
+  function fmtPct(n) {
+    var s = (n >= 0 ? "+" : "-") + Math.abs(n).toFixed(2) + "%";
+    return s;
+  }
+  function fmtPP(n) {
+    return (n >= 0 ? "+" : "-") + Math.abs(n).toFixed(2) + " pp";
+  }
+  function fmtPPShort(n) {
+    return (n >= 0 ? "+" : "-") + Math.abs(n).toFixed(1);
+  }
+  function fmtPctShort(n) {
+    return (n >= 0 ? "+" : "-") + Math.abs(n).toFixed(1) + "%";
+  }
+  function fmtDate(iso) {
+    var d = new Date(iso + "T00:00:00Z");
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  }
+
+  document.getElementById("btc-price").textContent = fmtUSD(current.btc.price, 0);
+  document.getElementById("spx-price").textContent = current.spx.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById("asof-date").textContent = "as of " + fmtDate(current.btc.date);
+  document.getElementById("asof-date-2").textContent = "as of " + fmtDate(current.spx.date);
+
+  var allNeg = periods.every(function (p) { return p.delta < 0; });
+  var allPos = periods.every(function (p) { return p.delta > 0; });
+  var worst = periods.reduce(function (a, b) { return b.delta < a.delta ? b : a; });
+  var best = periods.reduce(function (a, b) { return b.delta > a.delta ? b : a; });
+  var banner;
+  if (allNeg) {
+    banner = "<strong>Bitcoin trailed the S&amp;P 500 across every timeframe measured</strong> - from " + fmtPP(best.delta).replace("-","-") + " over the past week to " + fmtPP(worst.delta).replace("-","-") + " over the past year.";
+  } else if (allPos) {
+    banner = "<strong>Bitcoin outperformed the S&amp;P 500 across every timeframe measured</strong> - from " + fmtPP(worst.delta) + " to " + fmtPP(best.delta) + ".";
+  } else {
+    banner = "<strong>Bitcoin's edge over the S&amp;P 500 flips by timeframe</strong> - best at " + best.label.toLowerCase() + " (" + fmtPP(best.delta) + "), worst at " + worst.label.toLowerCase() + " (" + fmtPP(worst.delta) + ").";
+  }
+  document.getElementById("insight-banner").innerHTML = banner;
+
+  // ---------- shared tooltip ----------
+  var tip = document.getElementById("tooltip");
+  function showTip(x, y, html) {
+    tip.innerHTML = html;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+    tip.classList.add("show");
+  }
+  function hideTip() { tip.classList.remove("show"); }
+
+  // ---------- bar chart builder ----------
+  // domain: {min, max}; series: array of {key, color}; data: array of {label, values:{key:val}, meta:{key:{...}}}
+  function buildChart(containerId, labelsId, domain, seriesList, data, valueFmt, labelFmt) {
+    labelFmt = labelFmt || valueFmt;
+    var container = document.getElementById(containerId);
+    var labelsRow = document.getElementById(labelsId);
+    var range = domain.max - domain.min;
+    var zeroPct = (domain.max / range) * 100; // % from top where value==0
+
+    var gridEl = document.createElement("div");
+    gridEl.className = "gridlines";
+    domain.ticks.forEach(function (t) {
+      var pct = ((domain.max - t) / range) * 100;
+      var line = document.createElement("div");
+      line.className = "gridline" + (t === 0 ? " zero-line" : "");
+      line.style.top = pct + "%";
+      var tick = document.createElement("div");
+      tick.className = "tick mono";
+      tick.style.top = "0";
+      tick.textContent = (t > 0 ? "+" : "") + t + "%".replace("%", domain.unit || "%");
+      line.appendChild(tick);
+      gridEl.appendChild(line);
+    });
+    container.appendChild(gridEl);
+
+    var plot = document.createElement("div");
+    plot.className = "plot";
+    var groups = document.createElement("div");
+    groups.className = "groups";
+    var groupLabelRefs = [];
+
+    data.forEach(function (d) {
+      var group = document.createElement("div");
+      group.className = "group";
+      var labelRefs = [];
+
+      seriesList.forEach(function (s, si) {
+        var val = d.values[s.key];
+        var valPct = ((domain.max - val) / range) * 100;
+        var top = Math.min(zeroPct, valPct);
+        var height = Math.abs(valPct - zeroPct);
+        var isNeg = val < 0;
+
+        var bar = document.createElement("div");
+        bar.className = "bar" + (isNeg ? " neg" : "");
+        bar.style.background = s.color;
+        bar.style.top = top + "%";
+        bar.style.height = "max(" + height + "%, 2px)";
+
+        var offset = (si - (seriesList.length - 1) / 2) * 24;
+        bar.style.left = "calc(50% + " + offset + "px - 10px)";
+
+        var label = document.createElement("div");
+        label.className = "bar-label mono";
+        label.style.color = "var(--ink-primary)";
+        label.textContent = labelFmt(val);
+        if (isNeg) { label.style.top = "calc(100% + 5px)"; }
+        else { label.style.bottom = "calc(100% + 5px)"; }
+        bar.appendChild(label);
+        labelRefs.push({ el: label, absVal: Math.abs(val), isNeg: isNeg });
+
+        var hit = document.createElement("div");
+        hit.className = "bar-hit";
+        hit.style.left = "calc(50% + " + offset + "px - 15px)";
+        hit.addEventListener("mouseenter", function (e) { onHover(e, d, s); });
+        hit.addEventListener("mousemove", function (e) { onHover(e, d, s); });
+        hit.addEventListener("mouseleave", hideTip);
+        hit.addEventListener("focus", function (e) { onHover(e, d, s); });
+        hit.addEventListener("blur", hideTip);
+        hit.tabIndex = 0;
+
+        function onHover(e, d, s) {
+          var meta = d.meta[s.key];
+          var html = '<div class="tt-row"><span>' + s.name + '</span><span class="tt-val">' + valueFmt(meta.val) + '</span></div>' +
+                      '<div class="tt-sub">' + meta.sub + '</div>';
+          showTip(e.clientX, e.clientY, html);
+        }
+
+        group.appendChild(bar);
+        group.appendChild(hit);
+      });
+
+      groups.appendChild(group);
+      groupLabelRefs.push(labelRefs);
+
+      var catLabel = document.createElement("div");
+      catLabel.className = "cat-label";
+      catLabel.textContent = d.label;
+      labelsRow.appendChild(catLabel);
+    });
+
+    plot.appendChild(groups);
+    container.appendChild(plot);
+
+    // collision guard: within a group, if two same-side labels would overlap
+    // (both above or both below the baseline, rendered edges closer than 6px),
+    // drop the less extreme one inline — its value stays reachable via
+    // tooltip and the table below.
+    groupLabelRefs.forEach(function (refs) {
+      if (refs.length < 2) return;
+      for (var i = 0; i < refs.length; i++) {
+        for (var j = i + 1; j < refs.length; j++) {
+          if (refs[i].isNeg !== refs[j].isNeg) continue;
+          var rA = refs[i].el.getBoundingClientRect();
+          var rB = refs[j].el.getBoundingClientRect();
+          var overlap = rA.left < rB.right + 6 && rB.left < rA.right + 6;
+          if (overlap) {
+            var drop = refs[i].absVal < refs[j].absVal ? refs[i] : refs[j];
+            drop.el.style.visibility = "hidden";
+          }
+        }
+      }
+    });
+  }
+
+  // Returns chart
+  buildChart(
+    "returns-chart", "returns-labels",
+    { min: -55, max: 80, ticks: [-50, -25, 0, 25, 50, 75], unit: "%" },
+    [
+      { key: "btc", name: "Bitcoin", color: "var(--series-btc)" },
+      { key: "spx", name: "S&P 500", color: "var(--series-spx)" }
+    ],
+    periods.map(function (p) {
+      return {
+        label: p.label,
+        values: { btc: p.btcRet, spx: p.spxRet },
+        meta: {
+          btc: { val: p.btcRet, sub: fmtUSD(p.btcStart, 0) + " on " + fmtDate(p.btcDate) + " -> " + fmtUSD(current.btc.price, 0) + " today" },
+          spx: { val: p.spxRet, sub: p.spxStart.toLocaleString("en-US",{maximumFractionDigits:2}) + " on " + fmtDate(p.spxDate) + " -> " + current.spx.price.toLocaleString("en-US",{maximumFractionDigits:2}) + " today" }
+        }
+      };
+    }),
+    fmtPct,
+    fmtPctShort
+  );
+
+  // Delta chart
+  buildChart(
+    "delta-chart", "delta-labels",
+    { min: -75, max: 15, ticks: [-60, -40, -20, 0], unit: "pp" },
+    [ { key: "delta", name: "Delta", color: null } ],
+    periods.map(function (p) {
+      return {
+        label: p.label,
+        values: { delta: p.delta },
+        meta: { delta: { val: p.delta, sub: "Bitcoin " + fmtPct(p.btcRet) + "  vs  S&P 500 " + fmtPct(p.spxRet) } }
+      };
+    }),
+    fmtPP,
+    fmtPPShort
+  );
+  // color delta bars by sign after the fact (build fn takes a static color per series)
+  (function colorDeltaBars() {
+    var bars = document.querySelectorAll("#delta-chart .bar");
+    periods.forEach(function (p, i) {
+      bars[i].style.background = p.delta >= 0 ? "var(--div-pos)" : "var(--div-neg)";
+    });
+  })();
+
+  // ---------- table ----------
+  var tbody = document.getElementById("table-body");
+  periods.forEach(function (p) {
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      "<th>" + p.label + "</th>" +
+      "<td>" + fmtUSD(p.btcStart, 0) + "<div class=\"cell-sub\">" + fmtDate(p.btcDate) + "</div></td>" +
+      "<td class=\"" + (p.btcRet >= 0 ? "pos" : "neg-txt") + "\">" + fmtPct(p.btcRet) + "</td>" +
+      "<td>" + p.spxStart.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}) + "<div class=\"cell-sub\">" + fmtDate(p.spxDate) + "</div></td>" +
+      "<td class=\"" + (p.spxRet >= 0 ? "pos" : "neg-txt") + "\">" + fmtPct(p.spxRet) + "</td>" +
+      "<td class=\"" + (p.delta >= 0 ? "pos" : "neg-txt") + "\">" + fmtPP(p.delta) + "</td>";
+    tbody.appendChild(tr);
+  });
+})();
+</script>
